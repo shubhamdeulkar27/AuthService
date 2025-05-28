@@ -20,48 +20,76 @@ namespace Services.Implementation
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
         {
-            if (await _repo.ExistsAsync(request.Email))
-                throw new Exception("User already exists.");
+            try
+            {
+                if (await _repo.ExistsAsync(request.Email))
+                    throw new Exception("User already exists.");
 
-            var hash = HashPassword(request.Password);
-            var user = new User { Email = request.Email, PasswordHash = hash };
-            await _repo.CreateAsync(user);
+                var hash = HashPassword(request.Password);
+                var user = new User { Email = request.Email, PasswordHash = hash };
+                await _repo.CreateAsync(user);
 
-            return _jwt.GenerateToken(user);
+                return _jwt.GenerateToken(user);
+            }
+            catch(Exception ex)
+            {
+                throw new Exception($"Registration failed: {ex.Message}");
+            }   
         }
 
         public async Task<AuthResponse> LoginAsync(LoginRequest request)
         {
-            var user = await _repo.GetByEmailAsync(request.Email)
+            try
+            {
+                var user = await _repo.GetByEmailAsync(request.Email)
                 ?? throw new Exception("Invalid credentials.");
 
-            if (!VerifyPassword(request.Password, user.PasswordHash))
-                throw new Exception("Invalid credentials.");
+                if (!VerifyPassword(request.Password, user.PasswordHash))
+                    throw new Exception("Invalid credentials.");
 
-            return _jwt.GenerateToken(user);
+                return _jwt.GenerateToken(user);
+            }
+            catch(Exception ex)
+            {
+                throw new Exception($"Login failed: {ex.Message}");
+            }
         }
 
         private string HashPassword(string password)
         {
-            using var deriveBytes = new Rfc2898DeriveBytes(password, 16, 10000, HashAlgorithmName.SHA256);
-            byte[] salt = deriveBytes.Salt;
-            byte[] hash = deriveBytes.GetBytes(32);
+            try
+            {
+                using var deriveBytes = new Rfc2898DeriveBytes(password, 16, 10000, HashAlgorithmName.SHA256);
+                byte[] salt = deriveBytes.Salt;
+                byte[] hash = deriveBytes.GetBytes(32);
 
-            return $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(hash)}";
+                return $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(hash)}";
+            }
+            catch(Exception ex)
+            {
+                throw new Exception($"Password hashing failed: {ex.Message}");
+            }
         }
 
         private bool VerifyPassword(string password, string storedHash)
         {
-            var parts = storedHash.Split(':');
-            if (parts.Length != 2) return false;
+            try
+            {
+                var parts = storedHash.Split(':');
+                if (parts.Length != 2) return false;
 
-            byte[] salt = Convert.FromBase64String(parts[0]);
-            byte[] storedHashBytes = Convert.FromBase64String(parts[1]);
+                byte[] salt = Convert.FromBase64String(parts[0]);
+                byte[] storedHashBytes = Convert.FromBase64String(parts[1]);
 
-            using var deriveBytes = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
-            byte[] computedHash = deriveBytes.GetBytes(32);
+                using var deriveBytes = new Rfc2898DeriveBytes(password, salt, 10000, HashAlgorithmName.SHA256);
+                byte[] computedHash = deriveBytes.GetBytes(32);
 
-            return computedHash.SequenceEqual(storedHashBytes);
+                return computedHash.SequenceEqual(storedHashBytes);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Password verification failed: {ex.Message}");
+            }
         }
     }
 }

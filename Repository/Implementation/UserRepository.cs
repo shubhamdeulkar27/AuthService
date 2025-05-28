@@ -2,11 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using Repository.Data;
 using Repository.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Repository.Implementation
 {
@@ -21,15 +16,41 @@ namespace Repository.Implementation
 
         public async Task CreateAsync(User user)
         {
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error creating user: {ex.Message}", ex);
+            }
         }
 
-        public Task<User> GetByEmailAsync(string email) =>
-            _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        public async Task<User> GetByEmailAsync(string email)
+        {
+            try
+            {
+                return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error retrieving user by email: {ex.Message}", ex);
+            }
+        }
 
-        public Task<bool> ExistsAsync(string email) =>
-            _context.Users.AnyAsync(u => u.Email == email);
+
+        public Task<bool> ExistsAsync(string email)
+        {
+            try
+            {
+                return _context.Users.AnyAsync(u => u.Email == email);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error checking if user exists: {ex.Message}", ex);
+            }
+        }
     }
 
 }

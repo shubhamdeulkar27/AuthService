@@ -14,11 +14,54 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:8.0-nanoserver-1809 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["AuthService.csproj", "."]
+COPY ["AuthService/AuthService.csproj", "."]
+RUN dotnet restore "./AuthService/AuthService.csproj"
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["AuthService/AuthService.csproj", "."]
 RUN dotnet restore "./AuthService.csproj"
 COPY . .
+WORKDIR /src
+RUN dotnet build "AuthService.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "AuthService.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["AuthService/AuthService.csproj", "."]
+RUN dotnet restore "./AuthService.csproj"
+COPY . .
+RUN dotnet build "AuthService.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "AuthService.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "AuthService.dll"]
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "AuthService.dll"]
+COPY . .
 WORKDIR "/src/."
-RUN dotnet build "./AuthService.csproj" -c %BUILD_CONFIGURATION% -o /app/build
+RUN dotnet build "./AuthService/AuthService.csproj" -c %BUILD_CONFIGURATION% -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish

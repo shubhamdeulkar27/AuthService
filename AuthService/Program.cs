@@ -7,6 +7,7 @@ using Services.Interfaces;
 using Services.Implementation;
 using Repository.Interfaces;
 using Repository.Implementation;
+using Services.Security;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,7 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "your_issuer_here";
 var jwtAudience = builder.Configuration["JwtSettings:Audience"] ?? "your_audience_here";
 
 // Add services to the container.
+builder.Services.AddTransient<JwtTokenGenerator>();
 builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
 builder.Services.AddTransient<IUserRepository, UserRepository>();
 
@@ -45,7 +47,10 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.MigrationsAssembly("AuthService") // Set migrations assembly here
+    ));
 
 var app = builder.Build();
 
@@ -59,6 +64,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+app.UseAuthentication();
 
 app.MapControllers();
 
